@@ -1,6 +1,8 @@
 #include "RunSession.h"
 #include "ScoringSystem.h"
 #include "ModifierFactory.h"
+#include "ShopSystem.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -12,29 +14,40 @@
 using namespace std;
 
 void RunSession::startMenu() {
+
     bool isRunning = true;
     string choice;
+
     while (isRunning) {
+
         cout << "\n==============================\n";
         cout << "    CARD RUN GAME PROTOTYPE   \n";
         cout << "==============================\n";
-        cout << "1. Start\n2. Exit\nPilih menu (1/2): ";
+        cout << "1. Start\n";
+        cout << "2. Exit\n";
+        cout << "Pilih menu (1/2): ";
+
         getline(cin, choice);
-        if (choice == "1") runGameLoop();
-        else if (choice == "2") isRunning = false;
-        else cout << "Pilihan tidak valid.\n";
+
+        if (choice == "1")
+            runGameLoop();
+        else if (choice == "2")
+            isRunning = false;
+        else
+            cout << "Pilihan tidak valid.\n";
     }
 }
 
 void RunSession::initializeDeck() {
+
     deck.clear();
 
-    string bentuk[] = {"Spades", "Hearts", "Diamonds", "Clubs"};
-    string nomor[] = {"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"};
+    string bentuk[] = {"Spades","Hearts","Diamonds","Clubs"};
+    string nomor[] = {"2","3","4","5","6","7","8","9","10","J","Q","K","A"};
     int skorKartu[] = {2,3,4,5,6,7,8,9,10,10,10,10,11};
 
-    for (int b=0;b<4;++b) {
-        for (int n=0;n<13;++n) {
+    for(int b=0;b<4;b++){
+        for(int n=0;n<13;n++){
             deck.push_back(Card(nomor[n],bentuk[b],skorKartu[n]));
         }
     }
@@ -52,11 +65,14 @@ void RunSession::runGameLoop() {
 
     int currency = 0;
 
+    vector<IModifier*> inventory;
+
     const int totalRonde = 5;
+
     bool gameOver = false;
     bool exitToMenu = false;
 
-    for (int ronde=1; ronde<=totalRonde && !gameOver && !exitToMenu; ++ronde) {
+    for(int ronde=1; ronde<=totalRonde && !gameOver && !exitToMenu; ronde++){
 
         cout << "\n==============================\n";
         cout << "          RONDE " << ronde << "\n";
@@ -72,7 +88,7 @@ void RunSession::runGameLoop() {
             {"Boss Blind",goalBoss}
         };
 
-        for (auto &sesi : sesiList) {
+        for(auto &sesi : sesiList){
 
             if(exitToMenu) break;
 
@@ -85,7 +101,7 @@ void RunSession::runGameLoop() {
             int kesempatanMain = 4;
             int kesempatanDiscard = 3;
 
-            while (skorTerkumpul < sesi.second) {
+            while(skorTerkumpul < sesi.second){
 
                 if (kesempatanMain <= 0) {
                     cout << "\nKesempatan main habis!\n";
@@ -106,6 +122,7 @@ void RunSession::runGameLoop() {
                 cout << " | Deck: " << deck.size() << "\n";
 
                 int drawCount = min(8,(int)deck.size());
+
                 vector<Card> hand;
 
                 for(int i=0;i<drawCount;i++){
@@ -114,6 +131,7 @@ void RunSession::runGameLoop() {
                 }
 
                 cout << "\nKartu di tangan:\n";
+
                 for(size_t i=0;i<hand.size();i++){
                     cout << "(" << i+1 << ") ";
                     hand[i].tampilkan();
@@ -121,10 +139,12 @@ void RunSession::runGameLoop() {
                 }
 
                 cout << "\nPilih kartu (maks 5): ";
+
                 string input;
                 getline(cin,input);
 
                 stringstream ss(input);
+
                 vector<int> indeksTerpilih;
                 int pilihan;
 
@@ -146,6 +166,7 @@ void RunSession::runGameLoop() {
                     indeksTerpilih.resize(5);
 
                 vector<Card> chosenCards;
+
                 for(int idx:indeksTerpilih)
                     chosenCards.push_back(hand[idx]);
 
@@ -157,34 +178,34 @@ void RunSession::runGameLoop() {
                 string action;
                 getline(cin,action);
 
-                // ================= PLAY =================
                 if(action=="1"){
 
                     PokerHandResult hasil = scorer.calculateScore(chosenCards);
 
-                    IModifier* modA = ModifierFactory::createModifier("double");
-                    IModifier* modB = ModifierFactory::createModifier("flat");
+                    int skorKartu = hasil.skorTotal - hasil.skorKombinasi;
 
                     int skorFinal = hasil.skorTotal;
 
-                    if(modA) skorFinal = modA->apply(skorFinal);
-                    if(modB) skorFinal = modB->apply(skorFinal);
+                    for(auto mod : inventory)
+                        skorFinal = mod->apply(skorFinal);
 
                     cout << "\n=== HASIL ===\n";
+
                     cout << "Kombinasi: "
                          << hasil.namaKombinasi
                          << " (" << hasil.skorKombinasi << ")\n";
+
+                    cout << "Total skor kartu: "
+                         << skorKartu << "\n";
+
                     cout << "Total Skor Turn: "
                          << skorFinal << "\n";
 
                     skorTerkumpul += skorFinal;
-                    kesempatanMain--;
 
-                    delete modA;
-                    delete modB;
+                    kesempatanMain--;
                 }
 
-                // ================= DISCARD =================
                 else if(action=="2"){
 
                     if(kesempatanDiscard<=0){
@@ -193,6 +214,7 @@ void RunSession::runGameLoop() {
                     }
 
                     cout<<"Yakin discard? (y/n): ";
+
                     string confirm;
                     getline(cin,confirm);
 
@@ -202,12 +224,12 @@ void RunSession::runGameLoop() {
                     }
                     else{
                         cout<<"Discard dibatalkan.\n";
-                        for(auto &c:hand) deck.push_back(c);
+                        for(auto &c:hand)
+                            deck.push_back(c);
                         continue;
                     }
                 }
 
-                // ================= EXIT =================
                 else if(action=="3"){
                     exitToMenu = true;
                     break;
@@ -229,6 +251,14 @@ void RunSession::runGameLoop() {
             cout<<"\nSesi selesai!\n";
             cout<<"Bonus Currency: +"<<bonus<<"\n";
             cout<<"Total Currency: $"<<currency<<"\n";
+
+            try{
+                ShopSystem::openShop(inventory,currency);
+            }
+            catch(...){
+                exitToMenu = true;
+                break;
+            }
         }
     }
 
@@ -238,6 +268,9 @@ void RunSession::runGameLoop() {
         cout<<"\n===== SELAMAT! ANDA MENANG =====\n";
     else
         cout<<"\n===== GAME OVER =====\n";
+
+    for(auto mod : inventory)
+        delete mod;
 
     cout<<"Tekan Enter untuk kembali...";
     string dummy;
